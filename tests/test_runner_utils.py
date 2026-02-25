@@ -148,6 +148,28 @@ class TestParseTelephonyWebSocket(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(call_data["call_id"], "call_exo_123")
         self.assertEqual(call_data["account_sid"], "acc_123")
 
+    async def test_squaretalk_detection(self):
+        """Test Squaretalk provider detection."""
+        squaretalk_message = json.dumps(
+            {
+                "call_uuid": "uuid-1234-5678",
+                "stream_id": "stream_sq_123",
+                "to": "+15553333333",
+                "from": "+15554444444",
+            }
+        )
+
+        mock_websocket = MagicMock()
+        mock_websocket.iter_text.return_value = MockAsyncIterator([squaretalk_message])
+
+        transport_type, call_data = await parse_telephony_websocket(mock_websocket)
+
+        self.assertEqual(transport_type, "squaretalk")
+        self.assertEqual(call_data["call_uuid"], "uuid-1234-5678")
+        self.assertEqual(call_data["stream_id"], "stream_sq_123")
+        self.assertEqual(call_data["to"], "+15553333333")
+        self.assertEqual(call_data["from"], "+15554444444")
+
 
 if __name__ == "__main__":
     unittest.main()

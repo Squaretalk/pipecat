@@ -53,7 +53,7 @@ Supported transports:
 
 - Daily - Creates rooms and tokens, runs bot as participant
 - WebRTC - Provides local WebRTC interface with prebuilt UI
-- Telephony - Handles webhook and WebSocket connections for Twilio, Telnyx, Plivo, Exotel
+- Telephony - Handles webhook and WebSocket connections for Twilio, Telnyx, Plivo, Exotel, Squaretalk
 
 To run locally:
 
@@ -104,7 +104,7 @@ except ImportError as e:
 load_dotenv(override=True)
 os.environ["ENV"] = "local"
 
-TELEPHONY_TRANSPORTS = ["twilio", "telnyx", "plivo", "exotel"]
+TELEPHONY_TRANSPORTS = ["twilio", "telnyx", "plivo", "exotel", "squaretalk"]
 
 RUNNER_DOWNLOADS_FOLDER: Optional[str] = None
 RUNNER_HOST: str = "localhost"
@@ -745,7 +745,7 @@ def _setup_daily_routes(app: FastAPI, args: argparse.Namespace):
 
 def _setup_telephony_routes(app: FastAPI, args: argparse.Namespace):
     """Set up telephony-specific routes."""
-    # XML response templates (Exotel doesn't use XML webhooks)
+    # XML response templates (Exotel doesn't use XML webhooks) 
     XML_TEMPLATES = {
         "twilio": f"""<?xml version="1.0" encoding="UTF-8"?>
 <Response>
@@ -770,6 +770,7 @@ def _setup_telephony_routes(app: FastAPI, args: argparse.Namespace):
     @app.post("/")
     async def start_call():
         """Handle telephony webhook and return XML response."""
+
         if args.transport == "exotel":
             # Exotel doesn't use POST webhooks - redirect to proper documentation
             logger.debug("POST Exotel endpoint - not used")
@@ -777,6 +778,14 @@ def _setup_telephony_routes(app: FastAPI, args: argparse.Namespace):
                 "error": "Exotel doesn't use POST webhooks",
                 "websocket_url": f"wss://{args.proxy}/ws",
                 "note": "Configure the WebSocket URL above in your Exotel App Bazaar Voicebot Applet",
+            }
+        elif args.transport == "squaretalk":
+            # Squaretalk doesn't use POST webhooks - redirect to proper documentation
+            logger.debug("POST Squaretalk endpoint - not used")
+            return {
+                "error": "Squaretalk doesn't use POST webhooks",
+                "websocket_url": f"wss://{args.proxy}/ws",
+                "note": "Configure the WebSocket URL above in your Squaretalk App",
             }
         else:
             logger.debug(f"POST {args.transport.upper()} XML")
@@ -872,7 +881,7 @@ def main(parser: Optional[argparse.ArgumentParser] = None):
     Command-line arguments:
        - --host: Server host address (default: localhost) 879
        - --port: Server port (default: 7860)
-       - -t/--transport: Transport type (daily, webrtc, twilio, telnyx, plivo, exotel)
+       - -t/--transport: Transport type (daily, webrtc, twilio, telnyx, plivo, exotel, squaretalk)
        - -x/--proxy: Public proxy hostname for telephony webhooks
        - -d/--direct: Connect directly to Daily room (automatically sets transport to daily)
        - -f/--folder: Path to downloads folder

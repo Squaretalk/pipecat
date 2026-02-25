@@ -89,6 +89,11 @@ def _detect_transport_type_from_message(message_data: dict) -> str:
         logger.trace("Auto-detected: EXOTEL")
         return "exotel"
 
+    # Squaretalk detection
+    if "call_uuid" in message_data:
+        logger.trace("Auto-detected: SQUARETALK")
+        return "squaretalk"
+
     logger.trace("Auto-detection failed - unknown format")
     return "unknown"
 
@@ -156,7 +161,7 @@ async def parse_telephony_websocket(websocket: WebSocket):
     try:
         # First message - required
         first_message_raw = await message_stream.__anext__()
-        logger.trace(f"First message: {first_message_raw}")
+        logger.debug(f"First message: {first_message_raw}")
         first_message = json.loads(first_message_raw) if first_message_raw else {}
     except json.JSONDecodeError:
         pass
@@ -166,7 +171,7 @@ async def parse_telephony_websocket(websocket: WebSocket):
     try:
         # Second message - optional, some providers may only send one
         second_message_raw = await message_stream.__anext__()
-        logger.trace(f"Second message: {second_message_raw}")
+        logger.debug(f"Second message: {second_message_raw}")
         second_message = json.loads(second_message_raw) if second_message_raw else {}
     except json.JSONDecodeError:
         pass
@@ -231,6 +236,15 @@ async def parse_telephony_websocket(websocket: WebSocket):
                 "to": start_data.get("to", ""),
                 "custom_parameters": start_data.get("custom_parameters", ""),
             }
+        elif transport_type == "squaretalk":
+            start_data = {
+                "call_uuid": call_data_raw.get("call_uuid"),
+                "stream_id": call_data_raw.get("stream_id", ""),
+                "to": call_data_raw.get("to", ""),
+                "from": call_data_raw.get("from", ""),
+            }
+
+            call_data = start_data
 
         else:
             call_data = {}
@@ -478,10 +492,17 @@ async def _create_telephony_transport(
             stream_sid=call_data["stream_id"],
             call_sid=call_data["call_id"],
         )
+    elif transport_type == "squaretalk":
+        from pipecat.serializers.squaretalk import SquaretalkSerializer
+
+        params.serializer = SquaretalkSerializer(
+            call_uuid=call_data["call_uuid"],
+            stream_id=call_data.get("stream_id", ""),
+        )
     else:
         raise ValueError(
             f"Unsupported telephony provider: {transport_type}. "
-            f"Supported providers: twilio, telnyx, plivo, exotel"
+            f"Supported providers: twilio, telnyx, plivo, exotel, squaretalk"
         )
 
     return FastAPIWebsocketTransport(websocket=websocket, params=params)
