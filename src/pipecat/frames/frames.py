@@ -14,7 +14,6 @@ and LLM processing.
 import asyncio
 import time
 from dataclasses import dataclass, field
-from enum import Enum
 from typing import (
     TYPE_CHECKING,
     Any,
@@ -36,6 +35,7 @@ from pipecat.audio.turn.base_turn_analyzer import BaseTurnParams
 from pipecat.audio.vad.vad_analyzer import VADParams
 from pipecat.metrics.metrics import MetricsData
 from pipecat.transcriptions.language import Language
+from pipecat.utils.text.base_text_aggregator import AggregationType
 from pipecat.utils.time import nanoseconds_to_str
 from pipecat.utils.utils import obj_count, obj_id
 
@@ -391,16 +391,6 @@ class LLMTextFrame(TextFrame):
         super().__post_init__()
         # LLM services send text frames with all necessary spaces included
         self.includes_inter_frame_spaces = True
-
-
-class AggregationType(str, Enum):
-    """Built-in aggregation strings."""
-
-    SENTENCE = "sentence"
-    WORD = "word"
-
-    def __str__(self):
-        return self.value
 
 
 @dataclass
@@ -1998,6 +1988,16 @@ class LLMFullResponseEndFrame(ControlFrame):
     def __post_init__(self):
         super().__post_init__()
         self.skip_tts = None
+
+
+@dataclass
+class LLMAssistantPushAggregationFrame(ControlFrame):
+    """Frame that forces the LLM assistant aggregator to push its current aggregation to context.
+
+    When received by ``LLMAssistantAggregator``, any text that has been accumulated
+    in the aggregation buffer is immediately committed to the conversation context as
+    an assistant message, without waiting for an ``LLMFullResponseEndFrame``.
+    """
 
 
 @dataclass
